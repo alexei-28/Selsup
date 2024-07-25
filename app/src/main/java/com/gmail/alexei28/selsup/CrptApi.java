@@ -68,28 +68,26 @@ public final class CrptApi {
         @Override
         protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
             try {
-                LOGGER.debug("\n******** INCOMING_REQUEST(requestCount = {}, startDateTime = {}) ******** ", requestCount, startDateTime);
                 requestCount.incrementAndGet();
-                LOGGER.debug("requestCount = {}, requestLimit = {}, startDateTime = {}, this = {}", requestCount, requestLimit, startDateTime, this);
                 if (requestCount.get() == 1) {
                     startDateTime = LocalDateTime.now();
                     LOGGER.debug("requestCount = {} -> RESET_TIMER, startDateTime = {}", requestCount.get(), startDateTime);
                 }
                 long diffSec = ChronoUnit.SECONDS.between(startDateTime, LocalDateTime.now());
-                LOGGER.debug("diffSec = {}, durationLimitSec = {}", diffSec, durationLimitSec);
                 if (diffSec <= durationLimitSec) {
                     if (requestCount.get() > requestLimit) {
-                        LOGGER.warn("REJECT_request (diffSec <= durationLimitSec, requestCount = {} > requestLimit = {}) -> The number of requests exceeds the limit. Try later", requestCount, requestLimit);
-                        throw new RequestsExceedsLimitException("The number of requests exceeds the limit");
+                        LOGGER.warn("REJECT request (diffSec({}) <= durationLimitSec({}), requestCount = {} > requestLimit = {}) -> The number of requests exceeds the limit. Try later",
+                                diffSec, durationLimitSec, requestCount, requestLimit);
+                        throw new RequestsExceedsLimitException("The number of requests exceeds the limit. Try later");
                     }
                 } else {
                     requestCount.set(0);
-                    LOGGER.debug("RESET_requestCount = {} (diffSec > durationLimitSec)", requestCount);
+                    LOGGER.debug("RESET requestCount = {} (diffSec > durationLimitSec)", requestCount);
                 }
                 String payload = request.getReader().lines().collect(Collectors.joining());
                 Document document = gson.fromJson(payload, Document.class);
                 list.add(document);
-                LOGGER.debug("RESPONSE: OK, requestCount = {}, documents_list_size = {}", requestCount, list.size());
+                LOGGER.debug("RESPONSE OK, requestCount = {}", requestCount);
                 response.getWriter().println("{\n" + "\"Status\": \"OK\"\n" + "}");
             } catch (Exception ex) {
                 LOGGER.error(ex.getMessage());
