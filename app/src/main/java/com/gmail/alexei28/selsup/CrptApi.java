@@ -38,7 +38,7 @@ public final class CrptApi {
             final Server server = new Server(port);
 
             ServletContextHandler servletContextHandler = new ServletContextHandler();
-            servletContextHandler.addServlet(new ServletHolder(new DocumentServlet(Duration.ofSeconds(5), 3, gson)), PATH_SPEC);
+            servletContextHandler.addServlet(new ServletHolder(new DocumentServlet(Duration.ofSeconds(5), 5, gson)), PATH_SPEC);
             server.setHandler(servletContextHandler);
 
             server.start();
@@ -56,12 +56,13 @@ public final class CrptApi {
         private final AtomicInteger requestCount = new AtomicInteger(0);
         private LocalDateTime startDateTime = LocalDateTime.now();
         private final List<Document> list = new CopyOnWriteArrayList<>();
+        private static final String ERROR_NUMBER_REQUESTS_EXCEEDS_LIMIT = "The number of requests exceeds the limit. Try later";
 
         public DocumentServlet(Duration durationLimit, int requestLimit, Gson gson) {
             this.durationLimitSec = durationLimit.toSeconds();
             this.requestLimit = requestLimit;
             this.gson = gson;
-            LOGGER.debug("durationLimitSec = {}, requestLimit = {}, this = {} ", this.durationLimitSec, this.requestLimit, this);
+            LOGGER.debug("durationLimitSec = {}, requestLimit = {}", this.durationLimitSec, this.requestLimit);
         }
 
         // E.g. POST http://127.0.0.1:8081/api/v3/lk/documents/create
@@ -71,23 +72,24 @@ public final class CrptApi {
                 requestCount.incrementAndGet();
                 if (requestCount.get() == 1) {
                     startDateTime = LocalDateTime.now();
-                    LOGGER.debug("requestCount = {} -> RESET_TIMER, startDateTime = {}", requestCount.get(), startDateTime);
+                    LOGGER.debug("requestCount = {} -> RESET startDateTime = {}", requestCount.get(), startDateTime);
                 }
                 long diffSec = ChronoUnit.SECONDS.between(startDateTime, LocalDateTime.now());
                 if (diffSec <= durationLimitSec) {
                     if (requestCount.get() > requestLimit) {
-                        LOGGER.warn("REJECT request (diffSec({}) <= durationLimitSec({}), requestCount = {} > requestLimit = {}) -> The number of requests exceeds the limit. Try later",
-                                diffSec, durationLimitSec, requestCount, requestLimit);
-                        throw new RequestsExceedsLimitException("The number of requests exceeds the limit. Try later");
+
+                        LOGGER.warn("REJECT request (diffSec({}) <= durationLimitSec({}), requestCount = {} > requestLimit = {}) -> {}",
+                                diffSec, durationLimitSec, requestCount, requestLimit, ERROR_NUMBER_REQUESTS_EXCEEDS_LIMIT);
+                        throw new RequestsExceedsLimitException(ERROR_NUMBER_REQUESTS_EXCEEDS_LIMIT);
                     }
                 } else {
                     requestCount.set(0);
-                    LOGGER.debug("RESET requestCount = {} (diffSec > durationLimitSec)", requestCount);
+                    LOGGER.debug("RESET requestCount = {} (diffSec({}) > durationLimitSec({}))", requestCount.get(), diffSec, durationLimitSec);
                 }
                 String payload = request.getReader().lines().collect(Collectors.joining());
                 Document document = gson.fromJson(payload, Document.class);
                 list.add(document);
-                LOGGER.debug("RESPONSE OK, requestCount = {}", requestCount);
+                LOGGER.debug("RESPONSE OK, diffSec = {}, requestCount = {}", diffSec, requestCount.get());
                 response.getWriter().println("{\n" + "\"Status\": \"OK\"\n" + "}");
             } catch (Exception ex) {
                 LOGGER.error(ex.getMessage());
