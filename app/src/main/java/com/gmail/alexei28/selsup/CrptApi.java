@@ -55,7 +55,6 @@ public final class CrptApi {
         private final int requestLimit;
         private final AtomicInteger requestCount = new AtomicInteger(0);
         private LocalDateTime startDateTime = LocalDateTime.now();
-        private final List<Document> list = new CopyOnWriteArrayList<>();
         private static final String ERROR_NUMBER_REQUESTS_EXCEEDS_LIMIT = "The number of requests exceeds the limit. Try later";
 
         public DocumentServlet(Duration durationLimit, int requestLimit, Gson gson) {
@@ -88,14 +87,15 @@ public final class CrptApi {
                 }
                 String payload = request.getReader().lines().collect(Collectors.joining());
                 Document document = gson.fromJson(payload, Document.class);
-                list.add(document);
-                LOGGER.debug("RESPONSE OK, diffSec = {}, requestCount = {}", diffSec, requestCount.get());
+                LOGGER.debug("RESPONSE OK, diffSec = {}, requestCount = {}, doc_id = {}", diffSec, requestCount.get(), document.doc_id);
                 response.getWriter().println("{\n" + "\"Status\": \"OK\"\n" + "}");
             } catch (Exception ex) {
                 LOGGER.error(ex.getMessage());
-                String errorMessage = ex.getMessage();
+                String errorMessage = "General error";
                 if (ex instanceof JsonSyntaxException) {
                     errorMessage = "Incorrect document";
+                } else if (ex instanceof RequestsExceedsLimitException) {
+                    errorMessage = ex.getMessage();
                 }
                 response.getWriter().println("{\n" +
                         "\"Status\": \"Error\",\n" +
@@ -119,19 +119,6 @@ public final class CrptApi {
         private List<Product> products;
         private String reg_date;
         private String reg_number;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Document document = (Document) o;
-            return Objects.equals(doc_id, document.doc_id) && Objects.equals(production_type, document.production_type);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(doc_id);
-        }
 
         private final class Description {
             private String participantInn;
