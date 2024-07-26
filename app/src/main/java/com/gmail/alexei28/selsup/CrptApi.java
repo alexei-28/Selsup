@@ -18,11 +18,11 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+// POST http://127.0.0.1:8081/api/v3/lk/documents/create
+// Payload(json) is in the request body.
 public final class CrptApi {
     private static final int WEB_SERVER_PORT = 8081;
     private static final String PATH_SPEC = "/api/v3/lk/documents/create";
@@ -64,7 +64,6 @@ public final class CrptApi {
             LOGGER.debug("durationLimitSec = {}, requestLimit = {}", this.durationLimitSec, this.requestLimit);
         }
 
-        // E.g. POST http://127.0.0.1:8081/api/v3/lk/documents/create
         @Override
         protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
             try {
